@@ -1,0 +1,18 @@
+/* ============================================================
+   FONTS — Dhanush Chandra Design System
+   The portfolio loads these three via next/font/google. We load
+   the same families from Google Fonts so consumers match exactly.
+   - Hanken Grotesk  → UI / display sans
+   - JetBrains Mono  → terminal, code, technical labels
+   - Caveat          → occasional handwritten annotation accent
+   ============================================================ */
+
+@import url("https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&family=Caveat:wght@400;600;700&display=swap");
+
+:root {
+  --font-sans: "Hanken Grotesk", ui-sans-serif, system-ui, -apple-system,
+    "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", "SF Mono",
+    Menlo, Consolas, monospace;
+  --font-hand: "Caveat", ui-sans-serif, cursive;
+}

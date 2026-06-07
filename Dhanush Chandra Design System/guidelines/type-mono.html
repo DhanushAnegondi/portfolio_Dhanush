@@ -1,0 +1,36 @@
+<!-- @dsCard group="Type" viewport="700x210" name="Mono — JetBrains Mono" subtitle="Everything 'from the machine': terminal, labels, code." -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<link rel="stylesheet" href="../styles.css" />
+<style>
+  body { margin: 0; padding: 26px 32px; }
+  .mono { font-family: var(--font-mono); }
+  .eyebrow {
+    font-size: var(--text-xs);
+    text-transform: uppercase;
+    letter-spacing: var(--tracking-wider);
+    color: hsl(var(--muted-foreground));
+    margin: 0 0 16px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: hsl(var(--primary)); }
+  .term {
+    font-size: var(--text-sm);
+    line-height: 1.8;
+    color: hsl(var(--foreground));
+    margin: 0;
+  }
+  .prompt { color: hsl(var(--primary)); }
+  .dim { color: hsl(var(--muted-foreground)); }
+</style>
+</head>
+<body>
+  <p class="mono eyebrow"><span class="dot"></span>Data Engineer · open to work</p>
+  <pre class="mono term"><span class="prompt">$</span> whoami
+Dhanush Chandra · Data Engineer
+<span class="prompt">$</span> status
+<span class="dim">●</span> pipelines: green · data quality: enforced</pre>
+</body>
+</html>

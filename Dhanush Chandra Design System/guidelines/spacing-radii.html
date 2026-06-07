@@ -1,0 +1,27 @@
+<!-- @dsCard group="Spacing" viewport="700x170" name="Radii" subtitle="8 → 24px. 12px (lg) is the brand default." -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<link rel="stylesheet" href="../styles.css" />
+<style>
+  body { margin: 0; padding: 26px 32px; font-family: var(--font-mono); display: flex; gap: 18px; align-items: flex-end; }
+  .col { text-align: center; }
+  .box {
+    width: 84px; height: 64px;
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--border));
+    border-top: 2px solid hsl(var(--primary));
+  }
+  .tok { font-size: 11px; color: hsl(var(--foreground)); margin-top: 9px; }
+  .lbl { font-size: 10px; color: hsl(var(--muted-foreground)); }
+</style>
+</head>
+<body>
+  <div class="col"><div class="box" style="border-radius:var(--radius-sm)"></div><div class="tok">sm · 8</div><div class="lbl">chips, inputs</div></div>
+  <div class="col"><div class="box" style="border-radius:var(--radius-md)"></div><div class="tok">md · 10</div><div class="lbl">buttons</div></div>
+  <div class="col"><div class="box" style="border-radius:var(--radius-lg)"></div><div class="tok">lg · 12</div><div class="lbl">cards (default)</div></div>
+  <div class="col"><div class="box" style="border-radius:var(--radius-2xl)"></div><div class="tok">2xl · 24</div><div class="lbl">chat surfaces</div></div>
+  <div class="col"><div class="box" style="border-radius:var(--radius-full)"></div><div class="tok">full</div><div class="lbl">pills, avatars</div></div>
+</body>
+</html>
