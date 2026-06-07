@@ -58,6 +58,7 @@
     X: M(<g><path d="M18 6 6 18" /><path d="m6 6 12 12" /></g>),
     FileText: M(<g><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" /><path d="M14 2v6h6" /><line x1="9" y1="13" x2="15" y2="13" /><line x1="9" y1="17" x2="13" y2="17" /></g>),
     FolderPlus: M(<g><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z" /><line x1="12" y1="11" x2="12" y2="17" /><line x1="9" y1="14" x2="15" y2="14" /></g>),
+    Gamepad: M(<g><line x1="6" y1="11" x2="10" y2="11" /><line x1="8" y1="9" x2="8" y2="13" /><line x1="15" y1="12" x2="15.01" y2="12" /><line x1="18" y1="10" x2="18.01" y2="10" /><path d="M17.32 5H6.68a4 4 0 0 0-3.978 3.59c-.006.052-.01.101-.017.152C2.604 9.416 2 14.456 2 16a3 3 0 0 0 3 3c1 0 1.5-.5 2-1l1.414-1.414A2 2 0 0 1 9.828 16h4.344a2 2 0 0 1 1.414.586L17 18c.5.5 1 1 2 1a3 3 0 0 0 3-3c0-1.545-.604-6.584-.685-7.258-.007-.05-.011-.1-.017-.151A4 4 0 0 0 17.32 5z" /></g>),
   };
 
   // ---- Windows-7-style glossy "Aero" object icons ----------------------------
@@ -73,6 +74,7 @@
     Terminal: ["#6e8090", "#33424f", "#1b242c"], // console graphite
     Mail:     ["#5ebef1", "#2a85ca", "#1b639f"], // contact azure
     FileText: ["#ffffff", "#eef3f8", "#ccd6e2"], // text document — white page
+    Gamepad:  ["#ff8fc4", "#ec3f8f", "#bb2a68"], // Snake / game — arcade magenta
   };
   // icons that want a dark glyph on a light badge (paper-style)
   const GLYPH_DARK = { FileText: "#5b6b7b" };
