@@ -1,0 +1,12 @@
+node_modules
+.next
+.env.local
+.DS_Store
+
+# Local AI-assistant tooling (skills, config, project memory) — not part of the portfolio
+.agents/
+.cursor/
+.claude/
+.gemini/
+ledger/
+skills-lock.json
