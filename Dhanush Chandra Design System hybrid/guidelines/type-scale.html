@@ -1,0 +1,26 @@
+<!-- @dsCard group="Type" viewport="700x230" name="Type scale" subtitle="12 → 60px, mono labels to display headlines." -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<link rel="stylesheet" href="../styles.css" />
+<style>
+  body { margin: 0; padding: 24px 32px; font-family: var(--font-sans); }
+  .row { display: flex; align-items: baseline; gap: 18px; padding: 5px 0; }
+  .spec { font-size: var(--foreground); color: hsl(var(--foreground)); letter-spacing: var(--tracking-tight); white-space: nowrap; }
+  .tag {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: hsl(var(--muted-foreground));
+    width: 130px; flex: none;
+  }
+</style>
+</head>
+<body>
+  <div class="row"><span class="tag">6xl · 60 · 800</span><span class="spec" style="font-size:3rem;font-weight:800;line-height:1">Pipelines</span></div>
+  <div class="row"><span class="tag">2xl · 24 · 600</span><span class="spec" style="font-size:1.5rem;font-weight:600">Section heading</span></div>
+  <div class="row"><span class="tag">lg · 18 · 400</span><span class="spec" style="font-size:1.125rem">Lead paragraph copy</span></div>
+  <div class="row"><span class="tag">base · 16 · 400</span><span class="spec" style="font-size:1rem">Body text for reading</span></div>
+  <div class="row"><span class="tag">xs · 12 · mono</span><span class="spec" style="font-size:.75rem;font-family:var(--font-mono);text-transform:uppercase;letter-spacing:.05em;color:hsl(var(--muted-foreground))">Uppercase mono label</span></div>
+</body>
+</html>

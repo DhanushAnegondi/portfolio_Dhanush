@@ -1,0 +1,169 @@
+<!-- @dsCard group="Portfolio" viewport="1280x800" name="DhanushOS — immersive portfolio" subtitle="Boot a CRT data-platform desktop: draggable apps, live terminal, animated pipelines, AI helper." -->
+<!-- @startingPoint section="Portfolio" subtitle="Immersive 'boot a CRT desktop' data-engineer portfolio" viewport="1280x800" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>DhanushOS — Dhanush Chandra, Data Engineer</title>
+<link rel="stylesheet" href="../../styles.css" />
+<link rel="stylesheet" href="os.css" />
+</head>
+<body>
+  <div id="root"></div>
+  <div class="too-small">
+    <div>
+      <strong style="color:hsl(var(--foreground))">DhanushOS</strong><br /><br />
+      This immersive desktop is built for a larger screen.<br />
+      Open it on a tablet or laptop to boot up.
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+  <script src="data.js"></script>
+  <script type="text/babel" src="icons.jsx"></script>
+  <script type="text/babel" src="desktop.jsx"></script>
+  <script type="text/babel" src="apps.jsx"></script>
+  <script type="text/babel" src="projects.jsx"></script>
+  <script type="text/babel" src="terminal.jsx"></script>
+
+  <script type="text/babel">
+    const { useState, useRef, useCallback, useEffect } = React;
+
+    const APP_DEFS = [
+      { id: "terminal",   title: "Terminal.app",   menu: "Terminal",   icon: "Terminal", w: 580, h: 380, dockSep: true },
+      { id: "about",      title: "About.app",      menu: "About",      icon: "User",     w: 540, h: 470 },
+      { id: "projects",   title: "Projects.app",   menu: "Projects",   icon: "Folder",   w: 660, h: 580 },
+      { id: "skills",     title: "Skills.app",     menu: "Skills",     icon: "Layers",   w: 540, h: 540 },
+      { id: "experience", title: "Experience.app", menu: "Experience", icon: "History",  w: 540, h: 460 },
+      { id: "writing",    title: "Writing.app",    menu: "Writing",    icon: "Pen",      w: 580, h: 540 },
+      { id: "resume",     title: "Resume.app",     icon: "FileDown",   w: 560, h: 560 },
+      { id: "contact",    title: "Contact.app",    icon: "Mail",       w: 500, h: 560, dockSep: true },
+    ];
+
+    function App() {
+      const [entered, setEntered] = useState(false);
+      const [wins, setWins] = useState([]);
+      const [focused, setFocused] = useState(null);
+      const [theme, setTheme] = useState(() => localStorage.getItem("dos-theme") || "dark");
+      const zc = useRef(10);
+      const openCount = useRef(0);
+
+      useEffect(() => {
+        document.documentElement.classList.toggle("theme-light", theme === "light");
+        localStorage.setItem("dos-theme", theme);
+      }, [theme]);
+
+      const renderApp = useCallback((id) => {
+        const A = window.Apps;
+        switch (id) {
+          case "terminal":   return <A.Terminal onOpen={openApp} />;
+          case "about":      return <A.About />;
+          case "projects":   return <A.Projects />;
+          case "skills":     return <A.Skills />;
+          case "experience": return <A.Experience />;
+          case "writing":    return <A.Writing />;
+          case "resume":     return <A.Resume />;
+          case "contact":    return <A.Contact />;
+          default: return null;
+        }
+      }, []);
+
+      function nextPos(def) {
+        const i = openCount.current++;
+        const W = window.innerWidth, H = window.innerHeight;
+        const baseX = Math.max(40, W / 2 - def.w / 2 - 120);
+        const baseY = Math.max(50, H / 2 - def.h / 2 - 40);
+        const x = Math.min(W - def.w - 24, baseX + (i % 6) * 34);
+        const y = Math.min(H - def.h - 80, baseY + (i % 6) * 30);
+        return { x, y };
+      }
+
+      const openApp = useCallback((id, pos) => {
+        setWins((ws) => {
+          const z = ++zc.current;
+          const existing = ws.find((w) => w.id === id);
+          if (existing) return ws.map((w) => (w.id === id ? { ...w, z, anim: null, min: false } : w));
+          const def = APP_DEFS.find((d) => d.id === id);
+          const W = window.innerWidth, H = window.innerHeight;
+          let x, y;
+          if (pos) {
+            x = Math.max(20, Math.min(W - def.w - 20, pos.x));
+            y = Math.max(44, Math.min(H - def.h - 70, pos.y));
+          } else {
+            const p = nextPos(def); x = p.x; y = p.y;
+          }
+          return [...ws, { ...def, x, y, z, anim: null, min: false }];
+        });
+        setFocused(id);
+      }, []);
+
+      const focus = useCallback((id) => {
+        setWins((ws) => ws.map((w) => (w.id === id ? { ...w, z: ++zc.current } : w)));
+        setFocused(id);
+      }, []);
+
+      const move = useCallback((id, x, y) => {
+        setWins((ws) => ws.map((w) => (w.id === id ? { ...w, x, y } : w)));
+      }, []);
+
+      const close = useCallback((id) => {
+        setWins((ws) => ws.map((w) => (w.id === id ? { ...w, anim: "closing" } : w)));
+        setTimeout(() => setWins((ws) => ws.filter((w) => w.id !== id)), 190);
+      }, []);
+
+      const minimize = useCallback((id) => {
+        setWins((ws) => ws.map((w) => (w.id === id ? { ...w, anim: "minimizing" } : w)));
+        setTimeout(() => setWins((ws) => ws.map((w) => (w.id === id ? { ...w, min: true, anim: null } : w))), 260);
+      }, []);
+
+      function enter() {
+        setEntered(true);
+        // Greet with two deliberately-stacked windows so the desktop feels alive.
+        setTimeout(() => {
+          const W = window.innerWidth;
+          openApp("projects", { x: Math.max(24, W * 0.06), y: 70 });
+          openApp("terminal", { x: Math.max(24, W * 0.06) + 240, y: 320 });
+        }, 300);
+      }
+
+      const { BootSequence, MenuBar, DesktopIcons, Dock, Window } = window.OS;
+      const Assistant = window.Assistant;
+
+      if (!entered) return <BootSequence onDone={enter} />;
+
+      const openIds = wins.filter((w) => !w.min).map((w) => w.id);
+
+      return (
+        <>
+          <div className="screen">
+            <MenuBar apps={APP_DEFS} onOpen={openApp} theme={theme} onToggleTheme={() => setTheme((t) => (t === "dark" ? "light" : "dark"))} />
+            <div className="desktop">
+              <div className="wallpaper">
+                <div className="glow" />
+                <div className="grid" />
+                <div className="watermark">DATA<br />ENGINEER</div>
+              </div>
+              <DesktopIcons apps={APP_DEFS} onOpen={openApp} />
+              {wins.map((w) => w.min ? null : (
+                <Window key={w.id} win={w} focused={focused === w.id}
+                  onFocus={focus} onClose={close} onMinimize={minimize} onMove={move}>
+                  {renderApp(w.id)}
+                </Window>
+              ))}
+              <Assistant />
+            </div>
+            <Dock apps={APP_DEFS} openIds={openIds} onOpen={openApp} />
+          </div>
+          <div className="crt-overlay crt-flicker" />
+        </>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+  </script>
+</body>
+</html>

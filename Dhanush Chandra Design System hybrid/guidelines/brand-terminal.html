@@ -1,0 +1,39 @@
+<!-- @dsCard group="Brand" viewport="700x240" name="Terminal panel motif" subtitle="The hero's 'imagery' — show the work, don't decorate." -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<link rel="stylesheet" href="../styles.css" />
+<style>
+  body { margin: 0; padding: 22px 32px; }
+  .term {
+    border: 1px solid hsl(var(--border));
+    border-radius: var(--radius-xl);
+    background: hsl(var(--card) / 0.8);
+    box-shadow: var(--shadow-xl);
+    overflow: hidden;
+    max-width: 420px;
+  }
+  .bar { display: flex; align-items: center; gap: 8px; padding: 11px 16px; border-bottom: 1px solid hsl(var(--border)); }
+  .tl { width: 11px; height: 11px; border-radius: 50%; background: hsl(var(--muted-foreground) / 0.25); }
+  .title { margin-left: 8px; font-family: var(--font-mono); font-size: 12px; color: hsl(var(--muted-foreground)); }
+  .body { padding: 18px 18px; font-family: var(--font-mono); font-size: 13px; line-height: 1.9; }
+  .p { color: hsl(var(--primary)); }
+  .dim { color: hsl(var(--muted-foreground)); }
+  .fg { color: hsl(var(--foreground)); }
+  .cur { display: inline-block; width: 8px; height: 15px; background: hsl(var(--primary)); transform: translateY(2px); }
+</style>
+</head>
+<body>
+  <div class="term">
+    <div class="bar"><span class="tl"></span><span class="tl"></span><span class="tl"></span><span class="title">~/dhanush — stack</span></div>
+    <div class="body">
+      <div class="dim"><span class="p">$</span> whoami</div>
+      <div class="fg">Data Engineer · India</div>
+      <div class="dim"><span class="p">$</span> status</div>
+      <div class="fg"><span class="p">●</span> pipelines: green · data quality: enforced</div>
+      <div class="dim"><span class="p">$</span> <span class="cur ds-cursor-blink"></span></div>
+    </div>
+  </div>
+</body>
+</html>

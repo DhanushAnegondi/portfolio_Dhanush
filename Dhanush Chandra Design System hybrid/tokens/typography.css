@@ -1,0 +1,54 @@
+/* ============================================================
+   TYPOGRAPHY — Dhanush Chandra Design System
+   Hanken Grotesk drives UI & display; JetBrains Mono carries all
+   technical/terminal text; Caveat is a rare handwritten accent.
+   Type is the primary expressive tool — tight tracking on display,
+   relaxed leading on body, mono for anything "from the machine".
+   ============================================================ */
+
+:root {
+  /* ---- Families (mirror tokens/fonts.css) ---- */
+  --font-sans: "Hanken Grotesk", ui-sans-serif, system-ui, -apple-system,
+    "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo,
+    Consolas, monospace;
+  --font-hand: "Caveat", ui-sans-serif, cursive;
+
+  /* ---- Weights ---- */
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+  --weight-extrabold: 800;
+
+  /* ---- Type scale (fluid-friendly, px) ---- */
+  --text-xs: 0.75rem; /* 12 — mono labels, eyebrows           */
+  --text-sm: 0.875rem; /* 14 — secondary, captions, chips      */
+  --text-base: 1rem; /* 16 — body                            */
+  --text-lg: 1.125rem; /* 18 — lead paragraph                  */
+  --text-xl: 1.25rem; /* 20 — small headings                  */
+  --text-2xl: 1.5rem; /* 24 — section heading                 */
+  --text-3xl: 1.875rem; /* 30                                   */
+  --text-4xl: 2.25rem; /* 36 — hero on mobile                  */
+  --text-5xl: 3rem; /* 48                                   */
+  --text-6xl: 3.75rem; /* 60 — hero display                    */
+
+  /* ---- Line heights ---- */
+  --leading-tight: 1.05; /* display headlines                   */
+  --leading-snug: 1.25;
+  --leading-normal: 1.5; /* body                                */
+  --leading-relaxed: 1.65;
+
+  /* ---- Letter spacing ---- */
+  --tracking-tighter: -0.03em; /* large display                  */
+  --tracking-tight: -0.01em;
+  --tracking-normal: 0em;
+  --tracking-wide: 0.02em;
+  --tracking-wider: 0.05em; /* mono eyebrows (uppercase)        */
+
+  /* ---- Semantic roles ---- */
+  --text-display: var(--text-6xl);
+  --text-title: var(--text-2xl);
+  --text-body: var(--text-base);
+  --text-label: var(--text-xs);
+}

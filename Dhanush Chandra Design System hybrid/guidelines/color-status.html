@@ -1,0 +1,27 @@
+<!-- @dsCard group="Colors" viewport="700x180" name="Status — paired, never alone" subtitle="Success & danger always carry text or shape too." -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<link rel="stylesheet" href="../styles.css" />
+<style>
+  body { margin: 0; padding: 26px 32px; font-family: var(--font-mono); display: flex; gap: 14px; flex-wrap: wrap; align-items: center; }
+  .pill {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 7px 14px; border-radius: var(--radius-full);
+    font-size: var(--text-sm); border: 1px solid transparent;
+  }
+  .ok { background: hsl(var(--success) / 0.14); color: hsl(var(--success)); border-color: hsl(var(--success) / 0.35); }
+  .bad { background: hsl(var(--destructive) / 0.14); color: hsl(var(--destructive)); border-color: hsl(var(--destructive) / 0.35); }
+  .ember { background: hsl(var(--primary) / 0.14); color: hsl(var(--primary)); border-color: hsl(var(--primary) / 0.35); }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+  .val { font-size: 11px; color: hsl(var(--muted-foreground)); width: 100%; margin-top: 4px; }
+</style>
+</head>
+<body>
+  <span class="pill ok"><span class="dot"></span>pipelines: green</span>
+  <span class="pill bad"><span class="dot"></span>job failed</span>
+  <span class="pill ember"><span class="dot"></span>open to work</span>
+  <div class="val">success 152 52% 46% · destructive 0 72% 51% · ember 16 92% 58% — color never carries meaning alone</div>
+</body>
+</html>

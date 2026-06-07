@@ -1,0 +1,31 @@
+<!-- @dsCard group="Brand" viewport="700x170" name="Wordmark & mono lockup" subtitle="No icon logo — the name set in Hanken is the mark." -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<link rel="stylesheet" href="../styles.css" />
+<style>
+  body { margin: 0; padding: 30px 32px; display: flex; flex-direction: column; gap: 20px; }
+  .mark {
+    font-family: var(--font-sans); font-weight: 800;
+    font-size: 2rem; letter-spacing: var(--tracking-tighter);
+    color: hsl(var(--foreground)); margin: 0;
+  }
+  .mark .dot { color: hsl(var(--primary)); }
+  .lockup { display: flex; align-items: center; gap: 12px; }
+  .badge {
+    font-family: var(--font-mono); font-size: 11px;
+    text-transform: uppercase; letter-spacing: var(--tracking-wider);
+    color: hsl(var(--muted-foreground));
+    border-left: 2px solid hsl(var(--primary));
+    padding-left: 12px;
+  }
+</style>
+</head>
+<body>
+  <h1 class="mark">Dhanush Chandra<span class="dot">.</span></h1>
+  <div class="lockup">
+    <span class="badge">Data Engineer · Reliable pipelines</span>
+  </div>
+</body>
+</html>
