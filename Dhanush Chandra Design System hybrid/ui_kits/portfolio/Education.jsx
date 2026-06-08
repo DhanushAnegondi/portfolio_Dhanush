@@ -1,8 +1,8 @@
-// Portfolio UI kit — Education Journey.
-// Scroll-scrubbed GSAP timeline: a 4-beat pixel journey through the academic path.
-// Requires GSAP + ScrollTrigger CDN scripts loaded before this file.
+// Portfolio UI kit — Education Journey (scroll-driven PNG-frame render).
+// Requires: React 18 UMD, GSAP 3.12.5 + ScrollTrigger (globals), loaded before this file.
+// Assumes window.JourneyFX and window.ComicBubble may be present (guarded).
 
-// ─── EDIT: real values ───────────────────────────────────────────────────────
+// ─── EDIT: real degree values ─────────────────────────────────────────────────
 const BACHELOR = {
   label: "Bachelor's Degree",
   institution: "[Your University], India",
@@ -17,125 +17,306 @@ const MASTER = {
 };
 // ─────────────────────────────────────────────────────────────────────────────
 
-// ── style block ──────────────────────────────────────────────────────────────
-const EDU_STYLES = `
-/* ── Education section ── */
-.edu-section {
-  position: relative;
-  background: hsl(var(--background));
-  overflow: hidden;
+// ── Frame sequences ───────────────────────────────────────────────────────────
+const SEQS = {
+  homeExit: { dir: "journey/cine/frames/home-exit/",   prefix: "home-exit-",                   n: 6  },
+  walk:     { dir: "journey/cine/frames/walk/",         prefix: "student-walk-strong-",          n: 12 },
+  board:    { dir: "journey/cine/frames/board/",        prefix: "student-board-flight-",         n: 6  },
+  arrival:  { dir: "journey/cine/frames/arrival-look/", prefix: "student-arrival-look-",         n: 4  },
+  wave:     { dir: "journey/cine/frames/wave/",         prefix: "student-iu-arrival-wave-",      n: 4  },
+  toGrad:   { dir: "journey/cine/frames/to-graduate/",  prefix: "student-to-graduate-",          n: 6  },
+  celebrate:{ dir: "journey/cine/frames/celebrate/",    prefix: "graduate-celebrate-",           n: 4  },
+  certRaise:{ dir: "journey/cine/frames/cert-raise/",   prefix: "graduate-certificate-raise-",  n: 4  },
+  certIdle: { dir: "journey/cine/frames/cert-idle/",    prefix: "graduate-certificate-idle-",   n: 4  },
+  annoyed:  { dir: "journey/cine/frames/annoyed/",      prefix: "click-annoyed-",               n: 6  },
+  dismiss:  { dir: "journey/cine/frames/dismiss/",      prefix: "dismissive-recovery-",         n: 4  },
+  plane:    { dir: "journey/cine/frames/plane/",        prefix: "plane-flight-",                n: 6  },
+};
+
+// Helper: pick the src string for a frame sequence at local progress [0,1]
+function frameSrc(seq, local) {
+  const clampedLocal = Math.min(1, Math.max(0, local));
+  const idx = Math.min(seq.n - 1, Math.max(0, Math.floor(clampedLocal * seq.n)));
+  return seq.dir + seq.prefix + String(idx + 1).padStart(2, "0") + ".png";
 }
 
-.edu-label-row {
-  display: flex;
-  justify-content: center;
-  gap: 48px;
-  padding: 24px 24px 0;
-  position: relative;
-  z-index: 10;
+// All frame paths for preloading
+function allFramePaths() {
+  const paths = [];
+  for (const key in SEQS) {
+    const seq = SEQS[key];
+    for (let i = 1; i <= seq.n; i++) {
+      paths.push(seq.dir + seq.prefix + String(i).padStart(2, "0") + ".png");
+    }
+  }
+  return paths;
 }
 
-.edu-label-item {
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-wider);
-  color: hsl(var(--muted-foreground));
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
+// ── Icon/prop assets ──────────────────────────────────────────────────────────
+const IU_MARK     = "journey/iu-pixel-mark.png";
+const GATE_LEFT   = "journey/cine/iu/sample-gates-left-pillar.png";
+const GATE_RIGHT  = "journey/cine/iu/sample-gates-right-pillar.png";
+const BANNER      = "journey/cine/iu/iu-crimson-banner.png";
+const ORIGIN_PIN  = "journey/cine/route/origin-pin.png";
+const ORD_PIN     = "journey/cine/route/ord-pin.png";
 
-.edu-label-item .edu-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: hsl(var(--primary) / 0.4);
-  transition: background 0.3s;
-}
+// ── Act bands (progress 0..1) ─────────────────────────────────────────────────
+const ACTS = {
+  A1_START: 0.00, A1_END: 0.20,  // DEPARTURE
+  A2_START: 0.20, A2_END: 0.46,  // FLIGHT
+  A3_START: 0.46, A3_END: 0.70,  // ARRIVAL
+  A4_START: 0.70, A4_END: 1.00,  // GRADUATION
+};
 
-.edu-label-item.edu-active .edu-dot {
-  background: hsl(var(--primary));
-  box-shadow: 0 0 8px hsl(var(--primary));
-}
+// Chapter dots
+const CHAPTERS = [
+  { label: "Departure", start: ACTS.A1_START, end: ACTS.A1_END },
+  { label: "Flight",    start: ACTS.A2_START, end: ACTS.A2_END },
+  { label: "Arrival",   start: ACTS.A3_START, end: ACTS.A3_END },
+  { label: "Graduation",start: ACTS.A4_START, end: ACTS.A4_END + 0.01 },
+];
 
-/* ── Stage (the viewport window into the world) ── */
-.edu-stage {
+// ── CSS (cine- prefix only) ──────────────────────────────────────────────────
+const CINE_STYLES = `
+/* Layout */
+.cine {
   position: relative;
   width: 100%;
-  height: 72vh;
-  min-height: 420px;
-  max-height: 640px;
-  overflow: hidden;
-  background: hsl(var(--background));
+  font-family: var(--font-sans);
+  border-top: 1px solid hsl(var(--border));
 }
 
-/* ── Sky gradient layer ── */
-.edu-sky {
+/* Dark brand backdrop — always dark in both themes */
+.cine-backdrop {
   position: absolute;
   inset: 0;
-  background: linear-gradient(
-    to bottom,
-    hsl(220 25% 8%) 0%,
-    hsl(220 20% 12%) 40%,
-    hsl(var(--background)) 100%
-  );
   z-index: 0;
+  background:
+    radial-gradient(ellipse 80% 40% at 50% 0%, rgba(220,60,30,0.08) 0%, transparent 60%),
+    linear-gradient(180deg, hsl(220,25%,7%) 0%, hsl(220,20%,9%) 100%);
+  pointer-events: none;
 }
-
-/* ── Horizontal world strip (3× viewport wide) ── */
-.edu-world {
+.cine-backdrop::before {
+  content: '';
   position: absolute;
-  top: 0;
-  left: 0;
-  width: 300%;
-  height: 100%;
-  will-change: transform;
-  z-index: 1;
+  inset: 0;
+  background:
+    repeating-linear-gradient(0deg,   transparent, transparent 31px, rgba(255,255,255,0.025) 31px, rgba(255,255,255,0.025) 32px),
+    repeating-linear-gradient(90deg,  transparent, transparent 31px, rgba(255,255,255,0.025) 31px, rgba(255,255,255,0.025) 32px);
+  -webkit-mask-image: radial-gradient(ellipse 90% 90% at 50% 50%, black 30%, transparent 100%);
+  mask-image: radial-gradient(ellipse 90% 90% at 50% 50%, black 30%, transparent 100%);
+  pointer-events: none;
 }
 
-/* ── Ground strip tiled at the bottom ── */
-.edu-ground {
+/* Stage */
+.cine-stage {
+  position: relative;
+  width: 100%;
+  height: 100vh;
+  min-height: 480px;
+  overflow: hidden;
+}
+
+/* Ground line */
+.cine-ground {
+  position: absolute;
+  bottom: 12%;
+  left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.08) 20%, rgba(255,255,255,0.08) 80%, transparent 100%);
+  z-index: 5;
+  pointer-events: none;
+}
+
+/* HUD */
+.cine-header {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  z-index: 30;
+  padding: 20px 28px 0;
+  padding-left: 150px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  pointer-events: none;
+}
+.cine-heading {
+  font-family: var(--font-sans);
+  font-size: var(--text-2xl);
+  font-weight: var(--weight-semibold);
+  color: #f5f5f7;
+  letter-spacing: var(--tracking-tight);
+  margin: 0 0 2px;
+  text-shadow: 0 1px 6px rgba(0,0,0,0.6);
+}
+.cine-subheading {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: rgba(245,245,247,0.82);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wider);
+  margin: 0;
+  text-shadow: 0 1px 6px rgba(0,0,0,0.6);
+}
+.cine-chapters {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 4px 0;
+}
+.cine-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.2);
+  flex-shrink: 0;
+}
+.cine-dot.cine-dot--active {
+  background: hsl(var(--primary));
+  box-shadow: 0 0 8px hsl(var(--primary) / 0.7);
+  transform: scale(1.25);
+}
+.cine-dot-label {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wider);
+  color: rgba(245,245,247,0.82);
+  text-shadow: 0 1px 6px rgba(0,0,0,0.6);
+  margin-left: 2px;
+  margin-right: 4px;
+}
+
+/* Progress bar */
+.cine-progress-bar-wrap {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 3px;
+  z-index: 30;
+  background: rgba(255,255,255,0.07);
+}
+.cine-progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, hsl(var(--primary)), hsl(var(--primary) / 0.6));
+  width: 0%;
+}
+
+/* Character actor button */
+.cine-actor {
+  position: absolute;
+  bottom: 12%;
+  z-index: 15;
+  cursor: pointer;
+  pointer-events: auto;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: none;
+  border: none;
+  padding: 0;
+  outline-offset: 4px;
+}
+.cine-actor:focus-visible {
+  outline: 2px solid hsl(var(--primary));
+  border-radius: 4px;
+}
+.cine-contact-shadow {
+  position: absolute;
+  bottom: -6px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 80px; height: 14px;
+  background: radial-gradient(ellipse at center, rgba(0,0,0,0.45) 0%, transparent 70%);
+  pointer-events: none;
+}
+.cine-char-img {
+  display: block;
+  height: 150px;
+  width: auto;
+  image-rendering: pixelated;
+  pointer-events: none;
+}
+.cine-char-reaction {
   position: absolute;
   bottom: 0;
-  left: 0;
-  width: 100%;
-  height: 167px;
-  background-image: url('journey/walking-path.png');
-  background-repeat: repeat-x;
-  background-position: bottom left;
-  background-size: auto 167px;
+  left: 50%;
+  transform: translateX(-50%);
+  height: 150px;
+  width: auto;
   image-rendering: pixelated;
   z-index: 2;
+  pointer-events: none;
 }
 
-/* ── Cloud layer (parallax, inside world) ── */
-.edu-cloud {
+/* Plane */
+.cine-plane-img {
+  position: absolute;
+  image-rendering: pixelated;
+  z-index: 12;
+  pointer-events: none;
+}
+
+/* Route arc SVG */
+.cine-route-svg {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  z-index: 11;
+  pointer-events: none;
+  overflow: visible;
+}
+
+/* Route pins */
+.cine-pin {
+  position: absolute;
+  image-rendering: pixelated;
+  z-index: 13;
+  pointer-events: none;
+}
+
+/* ORD label */
+.cine-ord-label {
+  position: absolute;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: rgba(245,245,247,0.9);
+  text-shadow: 0 1px 6px rgba(0,0,0,0.8);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  pointer-events: none;
+  z-index: 14;
+  white-space: nowrap;
+}
+
+/* IU props */
+.cine-prop {
   position: absolute;
   image-rendering: pixelated;
   pointer-events: none;
-  z-index: 3;
-  opacity: 0;
+  z-index: 11;
 }
-
-/* ── Milestone card ── */
-.edu-card {
+.cine-iu-mark {
   position: absolute;
-  bottom: 190px;
-  width: 260px;
-  background: hsl(var(--card) / 0.85);
-  border: 1px solid hsl(var(--border));
-  border-radius: var(--radius);
-  box-shadow: var(--shadow-md);
-  backdrop-filter: blur(12px);
-  padding: 18px 20px;
-  opacity: 0;
-  transform: translateY(16px);
-  will-change: opacity, transform;
-  z-index: 5;
+  image-rendering: pixelated;
+  pointer-events: none;
+  z-index: 20;
+  filter: drop-shadow(0 0 18px hsl(var(--primary) / 0.5));
 }
 
-.edu-card-label {
+/* Education cards */
+.cine-card {
+  position: absolute;
+  width: 280px;
+  border-radius: 16px;
+  background: hsl(var(--card) / 0.96);
+  border: 1px solid hsl(var(--border));
+  border-left: 3px solid hsl(var(--primary));
+  box-shadow: var(--shadow-lg, 0 4px 24px rgba(0,0,0,0.4)), 0 8px 40px rgba(0,0,0,0.45);
+  backdrop-filter: blur(10px);
+  padding: 20px 22px;
+  z-index: 20;
+  pointer-events: none;
+}
+.cine-card-label {
   font-family: var(--font-mono);
   font-size: var(--text-xs);
   text-transform: uppercase;
@@ -143,8 +324,7 @@ const EDU_STYLES = `
   color: hsl(var(--primary));
   margin: 0 0 6px;
 }
-
-.edu-card-title {
+.cine-card-title {
   font-family: var(--font-sans);
   font-size: var(--text-lg);
   font-weight: var(--weight-semibold);
@@ -152,706 +332,825 @@ const EDU_STYLES = `
   margin: 0 0 4px;
   line-height: var(--leading-tight);
 }
-
-.edu-card-sub {
+.cine-card-sub {
   font-family: var(--font-sans);
   font-size: var(--text-sm);
   color: hsl(var(--muted-foreground));
   margin: 0 0 2px;
   line-height: var(--leading-relaxed);
 }
-
-.edu-card-years {
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
-  color: hsl(var(--muted-foreground) / 0.7);
-  margin: 6px 0 0;
-}
-
-/* ── IU milestone block ── */
-.edu-iu-block {
-  position: absolute;
-  bottom: 167px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  opacity: 0;
-  transform: scale(0.85);
-  will-change: opacity, transform;
-  z-index: 5;
-}
-
-.edu-iu-mark {
-  width: 120px;
-  height: auto;
-  image-rendering: pixelated;
-  filter: drop-shadow(0 0 16px hsl(var(--primary) / 0.5));
-}
-
-.edu-iu-pennant {
-  width: 80px;
-  height: auto;
-  image-rendering: pixelated;
-}
-
-/* ── Actor layer (sprites, pinned to stage center) ── */
-.edu-actor {
-  position: absolute;
-  bottom: 167px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 6;
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  pointer-events: none;
-}
-
-.edu-sprite {
-  position: absolute;
-  bottom: 0;
-  /* sit the character left-of-centre so it walks BESIDE the screen-centred cards */
-  left: calc(50% - 150px);
-  transform: translateX(-50%);
-  image-rendering: pixelated;
-  opacity: 0;
-  will-change: opacity, transform;
-}
-
-.edu-sprite-walk    { width: auto; height: 160px; animation: edu-walkbob 0.5s steps(2, end) infinite; }
-
-@keyframes edu-walkbob {
-  0%, 100% { transform: translate(-50%, 0); }
-  50%      { transform: translate(-50%, -5px); }
-}
-@media (prefers-reduced-motion: reduce) {
-  .edu-sprite-walk { animation: none; }
-}
-.edu-sprite-idle    { width: auto; height: 155px; }
-.edu-sprite-stoplook{ width: auto; height: 155px; }
-.edu-sprite-plane   { width: auto; height: 100px; }
-.edu-sprite-trail   { width: auto; height: 70px; }
-.edu-sprite-transform { width: auto; height: 160px; }
-.edu-sprite-celebrate { width: auto; height: 170px; }
-
-/* ── Arrival rings ── */
-.edu-arrival-rings {
-  position: absolute;
-  bottom: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 160px;
-  height: auto;
-  image-rendering: pixelated;
-  opacity: 0;
-  pointer-events: none;
-  z-index: 5;
-}
-
-/* ── Sparkles ── */
-.edu-sparkle {
-  position: absolute;
-  image-rendering: pixelated;
-  pointer-events: none;
-  opacity: 0;
-  z-index: 7;
-}
-
-/* ── Section heading ── */
-.edu-heading-row {
-  padding: 64px 24px 0;
-  max-width: 768px;
-  margin: 0 auto;
-  position: relative;
-  z-index: 10;
-}
-
-.edu-heading {
-  font-family: var(--font-sans);
-  font-size: var(--text-2xl);
-  font-weight: var(--weight-semibold);
-  color: hsl(var(--foreground));
-  letter-spacing: var(--tracking-tight);
-  margin: 0 0 4px;
-}
-
-.edu-subheading {
+.cine-card-years {
   font-family: var(--font-mono);
   font-size: var(--text-xs);
   color: hsl(var(--muted-foreground));
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-wider);
-  margin: 0 0 32px;
+  margin: 6px 0 0;
 }
 
-/* ── Scroll hint ── */
-.edu-scroll-hint {
+/* Scroll hint */
+.cine-scroll-hint {
   position: absolute;
-  bottom: 12px;
+  bottom: 24px;
   left: 50%;
   transform: translateX(-50%);
   font-family: var(--font-mono);
   font-size: 10px;
-  color: hsl(var(--muted-foreground) / 0.5);
+  color: rgba(245,245,247,0.6);
   text-transform: uppercase;
   letter-spacing: var(--tracking-wider);
   pointer-events: none;
-  z-index: 10;
-  animation: edu-bounce 1.8s ease-in-out infinite;
+  z-index: 30;
+  text-shadow: 0 1px 6px rgba(0,0,0,0.6);
+  white-space: nowrap;
+  animation: cine-bounce 1.8s ease-in-out infinite;
 }
-
-@keyframes edu-bounce {
+@keyframes cine-bounce {
   0%, 100% { transform: translateX(-50%) translateY(0); }
-  50%       { transform: translateX(-50%) translateY(-4px); }
+  50%       { transform: translateX(-50%) translateY(-5px); }
 }
 
-/* ── Signpost dressing ── */
-.edu-signpost {
+/* Screen-reader accessible text */
+.cine-sr-only {
   position: absolute;
-  bottom: 167px;
-  image-rendering: pixelated;
-  z-index: 4;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden;
+  clip: rect(0,0,0,0);
+  white-space: nowrap;
+  border: 0;
 }
 
-/* ── Static fallback (prefers-reduced-motion) ── */
-.edu--static .edu-static-inner {
+/* Static fallback */
+.cine-static {
+  background: hsl(220,25%,7%);
+  padding: 40px 24px 64px;
   max-width: 900px;
   margin: 0 auto;
-  padding: 40px 24px 64px;
   display: flex;
   flex-direction: column;
   gap: 40px;
 }
-
-.edu--static .edu-static-row {
+.cine-static-row {
   display: flex;
   align-items: flex-end;
   gap: 24px;
   flex-wrap: wrap;
 }
-
-.edu--static .edu-static-sprite {
-  flex-shrink: 0;
+.cine-static-img {
   image-rendering: pixelated;
   height: 130px;
   width: auto;
+  flex-shrink: 0;
 }
-
-.edu--static .edu-card {
-  position: static;
-  opacity: 1;
-  transform: none;
+.cine-static-card {
+  border-radius: 16px;
+  background: hsl(var(--card) / 0.92);
+  border: 1px solid hsl(var(--border));
+  border-left: 3px solid hsl(var(--primary));
+  box-shadow: 0 4px 24px rgba(0,0,0,0.4);
+  padding: 20px 22px;
   width: 280px;
   flex-shrink: 0;
 }
 
-.edu--static .edu-static-iu {
-  display: flex;
-  align-items: center;
-  gap: 20px;
-  flex-wrap: wrap;
-}
-
-.edu--static .edu-iu-block {
-  position: static;
-  opacity: 1;
-  transform: none;
-}
-
 @media (max-width: 600px) {
-  .edu--static .edu-static-row { flex-direction: column; align-items: flex-start; }
-  .edu-label-row { gap: 20px; }
+  .cine-header { padding-left: 28px; }
+  .cine-dot-label { display: none; }
+  .cine-card { width: min(240px, 88vw); }
+  .cine-static-row { flex-direction: column; align-items: flex-start; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cine-scroll-hint { animation: none; }
 }
 `;
 
-// ── helpers ───────────────────────────────────────────────────────────────────
-function useReducedMotion() {
-  return (
-    typeof window !== "undefined" &&
-    window.matchMedia &&
-    window.matchMedia("(prefers-reduced-motion: reduce)").matches
-  );
-}
+// ── Utility: lerp & clamp01 ───────────────────────────────────────────────────
+function clamp01(v) { return Math.min(1, Math.max(0, v)); }
+function lerp(a, b, t) { return a + (b - a) * t; }
+// Remap progress p from [inA..inB] → [0..1], clamped
+function remap(p, inA, inB) { return clamp01((p - inA) / (inB - inA)); }
+// Ease in-out cubic
+function easeInOut(t) { return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t; }
+// Ease out cubic
+function easeOut(t) { const u = 1 - t; return 1 - u * u * u; }
 
-// ── Static layout (reduced-motion / no-GSAP fallback) ────────────────────────
+// ── Static fallback ───────────────────────────────────────────────────────────
 function EducationStatic() {
+  const walkSrc    = frameSrc(SEQS.walk, 0.5);
+  const waveSrc    = frameSrc(SEQS.wave, 0.5);
+  const planeSrc   = frameSrc(SEQS.plane, 0.0);
+  const certSrc    = frameSrc(SEQS.certIdle, 0.0);
+
   return (
-    <div className="edu--static">
-      <div className="edu-static-inner">
-        {/* Beat 1 – Bachelor's */}
-        <div className="edu-static-row">
-          <img
-            src="journey/student-walk.webp"
-            alt="Student walking"
-            className="edu-static-sprite"
-            style={{ imageRendering: "pixelated" }}
-          />
-          <div className="edu-card">
-            <p className="edu-card-label">{BACHELOR.label}</p>
-            <p className="edu-card-title">{BACHELOR.institution}</p>
-            <p className="edu-card-sub">{BACHELOR.field}</p>
-            <p className="edu-card-years">{BACHELOR.years}</p>
-          </div>
+    <div className="cine-static">
+      <div className="cine-static-row">
+        <img src={walkSrc}  alt="Student walking" className="cine-static-img" />
+        <div className="cine-static-card">
+          <p className="cine-card-label">{BACHELOR.label}</p>
+          <p className="cine-card-title">{BACHELOR.institution}</p>
+          <p className="cine-card-sub">{BACHELOR.field}</p>
+          <p className="cine-card-years">{BACHELOR.years}</p>
         </div>
-
-        {/* Beat 2/3 – Master's with plane overhead */}
-        <div className="edu-static-row">
-          <img
-            src="journey/student-idle.webp"
-            alt="Student arrived"
-            className="edu-static-sprite"
-            style={{ imageRendering: "pixelated" }}
-          />
-          <div className="edu-card">
-            <p className="edu-card-label">{MASTER.label}</p>
-            <p className="edu-card-title">{MASTER.institution}</p>
-            <p className="edu-card-sub">{MASTER.field}</p>
-            <p className="edu-card-years">{MASTER.years}</p>
-          </div>
-          <img
-            src="journey/plane-flight.webp"
-            alt="Plane in flight"
-            className="edu-static-sprite"
-            style={{ height: 70, alignSelf: "flex-start", imageRendering: "pixelated" }}
-          />
+      </div>
+      <div className="cine-static-row">
+        <img src={planeSrc} alt="Plane in flight" className="cine-static-img" />
+        <img src={ORIGIN_PIN} alt="Origin: India" style={{ height: 60, width: "auto", imageRendering: "pixelated" }} />
+        <img src={ORD_PIN}    alt="Chicago O'Hare (ORD)" style={{ height: 44, width: "auto", imageRendering: "pixelated" }} />
+      </div>
+      <div className="cine-static-row">
+        <img src={waveSrc}  alt="Student waving at IU" className="cine-static-img" />
+        <div className="cine-static-card">
+          <p className="cine-card-label">{MASTER.label}</p>
+          <p className="cine-card-title">{MASTER.institution}</p>
+          <p className="cine-card-sub">{MASTER.field}</p>
+          <p className="cine-card-years">{MASTER.years}</p>
         </div>
-
-        {/* Beat 4 – IU / graduate */}
-        <div className="edu-static-row edu-static-iu">
-          <img
-            src="journey/graduate-celebrate.webp"
-            alt="Graduate celebrating"
-            className="edu-static-sprite"
-            style={{ imageRendering: "pixelated" }}
-          />
-          <div className="edu-iu-block">
-            <img src="journey/iu-pixel-mark.png" alt="Indiana University" className="edu-iu-mark" />
-            <img src="journey/iu-pennant.png" alt="IU pennant" className="edu-iu-pennant" />
-          </div>
-          <img
-            src="journey/success-sparkles-amber.png"
-            alt=""
-            aria-hidden="true"
-            className="edu-static-sprite"
-            style={{ height: 80, imageRendering: "pixelated", opacity: 0.8 }}
-          />
-        </div>
+        <img src={IU_MARK} alt="Indiana University" style={{ height: 70, width: "auto", imageRendering: "pixelated" }} />
+      </div>
+      <div className="cine-static-row">
+        <img src={certSrc}  alt="Graduate with certificate" className="cine-static-img" />
       </div>
     </div>
   );
 }
 
-// ── Animated layout ───────────────────────────────────────────────────────────
+// ── Animated component ────────────────────────────────────────────────────────
 function EducationAnimated() {
-  const sectionRef   = React.useRef(null);
-  const stageRef     = React.useRef(null);
-  const worldRef     = React.useRef(null);
-  const actorRef     = React.useRef(null);
-  const tlRef        = React.useRef(null);
-  const stRef        = React.useRef(null);
+  const sectionRef      = React.useRef(null);
+  const stRef           = React.useRef(null);   // ScrollTrigger instance
+  const mountedRef      = React.useRef(false);
+  const rafRef          = React.useRef(null);    // reaction rAF
+  const reactingRef     = React.useRef(false);
 
-  // sprite refs
-  const walkRef      = React.useRef(null);
-  const idleRef      = React.useRef(null);
-  const stopRef      = React.useRef(null);
-  const planeRef     = React.useRef(null);
-  const trailRef     = React.useRef(null);
-  const transformRef = React.useRef(null);
-  const celebRef     = React.useRef(null);
+  // DOM refs for render(p) imperative updates — NO state for per-frame data
+  const actorRef        = React.useRef(null);
+  const charImgRef      = React.useRef(null);    // main character <img>
+  const reactionImgRef  = React.useRef(null);    // click reaction overlay <img>
+  const planeImgRef     = React.useRef(null);    // plane <img>
+  const planeSvgRef     = React.useRef(null);    // route arc SVG
+  const originPinRef    = React.useRef(null);
+  const ordPinRef       = React.useRef(null);
+  const ordLabelRef     = React.useRef(null);
+  const flightLayerRef  = React.useRef(null);    // flight act wrapper
+  const card1Ref        = React.useRef(null);
+  const card2Ref        = React.useRef(null);
+  const gateLeftRef     = React.useRef(null);
+  const gateRightRef    = React.useRef(null);
+  const bannerRef       = React.useRef(null);
+  const iuMarkRef       = React.useRef(null);
+  const progressBarRef  = React.useRef(null);
+  const dotsRef         = React.useRef([]);
+  const scrollHintRef   = React.useRef(null);
 
-  // card / deco refs
-  const card1Ref     = React.useRef(null);
-  const card2Ref     = React.useRef(null);
-  const iuBlockRef   = React.useRef(null);
-  const rings2Ref    = React.useRef(null);
-  const sparkle1Ref  = React.useRef(null);
-  const sparkle2Ref  = React.useRef(null);
-  const sparkle3Ref  = React.useRef(null);
+  // One-shot fired flags (refs, not state)
+  const sparkFiredRef   = React.useRef(false);
+  const confettiFiredRef= React.useRef(false);
 
-  // cloud refs
-  const cL1Ref = React.useRef(null);
-  const cM1Ref = React.useRef(null);
-  const cS1Ref = React.useRef(null);
+  // React state only for bubble visibility (minimal re-render surface)
+  const [bubbleVisible, setBubbleVisible] = React.useState(false);
+  const [bubblePos,     setBubblePos]     = React.useState({ x: 0, y: 0 });
 
-  // progress dot refs
-  const dot1Ref = React.useRef(null);
-  const dot2Ref = React.useRef(null);
-  const dot3Ref = React.useRef(null);
-
+  // ── Preload all frames once ───────────────────────────────────────────────
   React.useEffect(() => {
-    // Guard: GSAP must be available
-    if (!window.gsap || !window.ScrollTrigger) {
-      console.warn("Education: GSAP/ScrollTrigger not loaded — skipping animation.");
+    const paths = allFramePaths();
+    paths.forEach((p) => { const img = new Image(); img.src = p; });
+  }, []);
+
+  // ── render(p): pure imperative function, no setState ─────────────────────
+  function render(p) {
+    if (!mountedRef.current) return;
+
+    // -- Chapter dots + progress bar --
+    if (progressBarRef.current) {
+      progressBarRef.current.style.width = (p * 100) + "%";
+    }
+    dotsRef.current.forEach((el, i) => {
+      if (!el) return;
+      const ch = CHAPTERS[i];
+      const active = p >= ch.start && (i < CHAPTERS.length - 1 ? p < ch.end : p <= 1.0);
+      if (active) el.classList.add("cine-dot--active");
+      else        el.classList.remove("cine-dot--active");
+    });
+
+    // -- Scroll hint --
+    if (scrollHintRef.current) {
+      scrollHintRef.current.style.opacity = p < 0.02 ? "1" : String(Math.max(0, 1 - (p - 0.02) / 0.04));
+    }
+
+    // ── ACT 1: DEPARTURE (0.00 – 0.20) ──────────────────────────────────
+    if (p < ACTS.A1_END) {
+      const local = remap(p, ACTS.A1_START, ACTS.A1_END); // 0..1
+
+      // Character sequence: homeExit 0–0.25, walk 0.25–1.0
+      let seq, seqLocal;
+      if (local < 0.25) {
+        seq = SEQS.homeExit;
+        seqLocal = remap(local, 0, 0.25);
+      } else {
+        seq = SEQS.walk;
+        seqLocal = remap(local, 0.25, 1.0);
+      }
+
+      if (charImgRef.current) {
+        charImgRef.current.src = frameSrc(seq, seqLocal);
+        charImgRef.current.style.opacity = "1";
+      }
+
+      // Actor translateX: ~14% → ~42% of stage (character to left, card to right)
+      if (actorRef.current) {
+        const xPct = lerp(14, 42, easeInOut(local));
+        actorRef.current.style.transform = `translateX(${xPct}vw)`;
+        actorRef.current.style.left = "0";
+        actorRef.current.style.opacity = "1";
+        actorRef.current.style.display = "";
+      }
+
+      // Hide flight layer
+      if (flightLayerRef.current) flightLayerRef.current.style.opacity = "0";
+
+      // Bachelor card: opacity 0→1 over local 0.04→0.12 (p~0.008..0.024),
+      // then hold, then fade out local 0.90→1.0
+      if (card1Ref.current) {
+        let cardAlpha;
+        if (local < 0.04) cardAlpha = 0;
+        else if (local < 0.12) cardAlpha = easeOut(remap(local, 0.04, 0.12));
+        else if (local < 0.88) cardAlpha = 1;
+        else cardAlpha = 1 - remap(local, 0.88, 1.0);
+        const cardY = lerp(18, 0, easeOut(Math.min(1, remap(local, 0.04, 0.14))));
+        card1Ref.current.style.opacity = String(cardAlpha);
+        card1Ref.current.style.transform = `translateY(${cardY}px)`;
+        card1Ref.current.style.display = "";
+      }
+      if (card2Ref.current) { card2Ref.current.style.opacity = "0"; }
+
+      // IU props hidden
+      if (gateLeftRef.current)  gateLeftRef.current.style.opacity  = "0";
+      if (gateRightRef.current) gateRightRef.current.style.opacity = "0";
+      if (bannerRef.current)    bannerRef.current.style.opacity    = "0";
+      if (iuMarkRef.current)    iuMarkRef.current.style.opacity    = "0";
+
+      // One-shot sparkle at p~0.16
+      const SPARK_THRESH = 0.16;
+      if (!sparkFiredRef.current && p >= SPARK_THRESH) {
+        sparkFiredRef.current = true;
+        if (window.JourneyFX && card1Ref.current) {
+          const r = card1Ref.current.getBoundingClientRect();
+          window.JourneyFX.sparkleBurst(r.right, r.top + r.height * 0.5);
+        }
+      }
+      if (p < SPARK_THRESH - 0.06) sparkFiredRef.current = false;
+
       return;
     }
 
+    // ── ACT 2: FLIGHT (0.20 – 0.46) ──────────────────────────────────────
+    if (p < ACTS.A2_END) {
+      const local = remap(p, ACTS.A2_START, ACTS.A2_END); // 0..1
+
+      // Hide character
+      if (actorRef.current) actorRef.current.style.display = "none";
+
+      // Cards hidden
+      if (card1Ref.current) card1Ref.current.style.opacity = "0";
+      if (card2Ref.current) card2Ref.current.style.opacity = "0";
+      if (gateLeftRef.current)  gateLeftRef.current.style.opacity  = "0";
+      if (gateRightRef.current) gateRightRef.current.style.opacity = "0";
+      if (bannerRef.current)    bannerRef.current.style.opacity    = "0";
+      if (iuMarkRef.current)    iuMarkRef.current.style.opacity    = "0";
+
+      // Flight layer: fade in at start, hold, fade out near end
+      if (flightLayerRef.current) {
+        let flAlpha;
+        if (local < 0.06) flAlpha = easeOut(remap(local, 0, 0.06));
+        else if (local < 0.88) flAlpha = 1;
+        else flAlpha = 1 - remap(local, 0.88, 1.0);
+        flightLayerRef.current.style.opacity = String(flAlpha);
+      }
+
+      // Plane: cycles frames by local progress + arc path
+      // Arc: origin pin ~18% from left, ~60% from bottom; ORD pin ~78% from left, ~62% from bottom
+      // Stage coords (% of 100vw x 100vh):
+      const originX = 18;  // vw %
+      const originY = 62;  // vh % from bottom → top = 38vh %
+      const ordX    = 78;
+      const ordY    = 62;
+      // Arc midpoint peaks up at 30vh % from bottom (top=30%)
+      const midX    = 48;
+      const midY    = 70;  // peak height from bottom
+
+      // Quadratic bezier at t=local: P = (1-t)^2*P0 + 2t(1-t)*P1 + t^2*P2
+      const t       = local;
+      const planeX  = (1 - t) * (1 - t) * originX + 2 * t * (1 - t) * midX + t * t * ordX;
+      const planeY  = (1 - t) * (1 - t) * originY + 2 * t * (1 - t) * midY + t * t * ordY;
+      // Convert to actual CSS: left=planeX vw, bottom=planeY vh
+
+      if (planeImgRef.current) {
+        planeImgRef.current.src = frameSrc(SEQS.plane, local);
+        planeImgRef.current.style.left   = planeX + "vw";
+        planeImgRef.current.style.bottom = planeY + "vh";
+        planeImgRef.current.style.transform = "translate(-50%, 50%)";
+      }
+
+      // Pins: fade in at local 0.02, hold, fade out at 0.88
+      const pinAlpha = local < 0.06 ? easeOut(remap(local, 0.02, 0.06))
+        : local > 0.88 ? 1 - remap(local, 0.88, 1.0)
+        : 1;
+
+      if (originPinRef.current) {
+        originPinRef.current.style.opacity = String(pinAlpha);
+        originPinRef.current.style.left   = originX + "vw";
+        originPinRef.current.style.bottom = (originY - 10) + "vh"; // pin base a bit below plane origin
+      }
+      if (ordPinRef.current) {
+        ordPinRef.current.style.opacity = String(pinAlpha);
+        ordPinRef.current.style.left   = ordX + "vw";
+        ordPinRef.current.style.bottom = (ordY - 10) + "vh";
+      }
+      if (ordLabelRef.current) {
+        ordLabelRef.current.style.opacity = String(pinAlpha);
+        ordLabelRef.current.style.left    = (ordX + 2) + "vw";
+        ordLabelRef.current.style.bottom  = (ordY - 5) + "vh";
+      }
+
+      // Arc SVG: draw dotted arc only while act is visible
+      if (planeSvgRef.current) {
+        planeSvgRef.current.style.opacity = String(pinAlpha);
+        // SVG path using viewBox 0 0 100 100 (maps to vw x vh proportions via preserveAspectRatio none)
+        const d = `M ${originX} ${100 - originY} Q ${midX} ${100 - midY} ${ordX} ${100 - ordY}`;
+        const pathEl = planeSvgRef.current.querySelector(".cine-arc-path");
+        if (pathEl) pathEl.setAttribute("d", d);
+      }
+
+      return;
+    }
+
+    // ── ACT 3: ARRIVAL (0.46 – 0.70) ─────────────────────────────────────
+    if (p < ACTS.A3_END) {
+      const local = remap(p, ACTS.A3_START, ACTS.A3_END); // 0..1
+
+      // Bring back character
+      if (actorRef.current) {
+        actorRef.current.style.display = "";
+        actorRef.current.style.opacity = "1";
+        const xPct = lerp(30, 38, easeInOut(Math.min(1, remap(local, 0, 0.5))));
+        actorRef.current.style.transform = `translateX(${xPct}vw)`;
+        actorRef.current.style.left = "0";
+      }
+
+      // Character: arrival 0–0.4, wave 0.4–1.0
+      let seq2, seqLocal2;
+      if (local < 0.4) {
+        seq2 = SEQS.arrival;
+        seqLocal2 = remap(local, 0, 0.4);
+      } else {
+        seq2 = SEQS.wave;
+        seqLocal2 = remap(local, 0.4, 1.0);
+      }
+      if (charImgRef.current) {
+        charImgRef.current.src = frameSrc(seq2, seqLocal2);
+        charImgRef.current.style.opacity = "1";
+      }
+
+      // Hide flight layer
+      if (flightLayerRef.current) flightLayerRef.current.style.opacity = "0";
+
+      // IU gate pillars + banner: fade in at local 0.05→0.15
+      const iuPropAlpha = local < 0.05 ? 0
+        : local < 0.15 ? easeOut(remap(local, 0.05, 0.15))
+        : local < 0.85 ? 1
+        : 1 - remap(local, 0.85, 1.0);
+
+      if (gateLeftRef.current)  gateLeftRef.current.style.opacity  = String(iuPropAlpha);
+      if (gateRightRef.current) gateRightRef.current.style.opacity = String(iuPropAlpha);
+      if (bannerRef.current)    bannerRef.current.style.opacity    = String(iuPropAlpha);
+
+      // IU mark hidden in act 3
+      if (iuMarkRef.current) iuMarkRef.current.style.opacity = "0";
+
+      // Hide bachelor card
+      if (card1Ref.current) card1Ref.current.style.opacity = "0";
+
+      // Master card: fade in at local 0.08→0.20, hold, fade out 0.88→1.0
+      if (card2Ref.current) {
+        let card2Alpha;
+        if (local < 0.08) card2Alpha = 0;
+        else if (local < 0.20) card2Alpha = easeOut(remap(local, 0.08, 0.20));
+        else if (local < 0.86) card2Alpha = 1;
+        else card2Alpha = 1 - remap(local, 0.86, 1.0);
+        const card2Y = lerp(18, 0, easeOut(Math.min(1, remap(local, 0.08, 0.22))));
+        card2Ref.current.style.opacity = String(card2Alpha);
+        card2Ref.current.style.transform = `translateY(${card2Y}px)`;
+        card2Ref.current.style.display = "";
+      }
+
+      // One-shot confetti at p~0.64 (local ~0.69)
+      const CONF_THRESH = 0.64;
+      if (!confettiFiredRef.current && p >= CONF_THRESH) {
+        confettiFiredRef.current = true;
+        if (window.JourneyFX && card2Ref.current) {
+          const r = card2Ref.current.getBoundingClientRect();
+          window.JourneyFX.confettiBurst(r.right, r.top);
+        }
+      }
+      if (p < CONF_THRESH - 0.06) confettiFiredRef.current = false;
+
+      return;
+    }
+
+    // ── ACT 4: GRADUATION (0.70 – 1.00) ──────────────────────────────────
+    {
+      const local = remap(p, ACTS.A4_START, ACTS.A4_END); // 0..1
+
+      if (actorRef.current) {
+        actorRef.current.style.display = "";
+        actorRef.current.style.opacity = "1";
+        // Hold at center, slight drift right
+        const xPct = lerp(42, 46, local);
+        actorRef.current.style.transform = `translateX(${xPct}vw)`;
+        actorRef.current.style.left = "0";
+      }
+
+      // Character sequence: toGrad 0–0.45, certRaise 0.45–0.70, celebrate 0.70–0.90, certIdle 0.90–1.0
+      let seq4, seqLocal4;
+      if (local < 0.45) {
+        seq4 = SEQS.toGrad;
+        seqLocal4 = remap(local, 0, 0.45);
+      } else if (local < 0.70) {
+        seq4 = SEQS.certRaise;
+        seqLocal4 = remap(local, 0.45, 0.70);
+      } else if (local < 0.90) {
+        seq4 = SEQS.celebrate;
+        seqLocal4 = remap(local, 0.70, 0.90);
+      } else {
+        seq4 = SEQS.certIdle;
+        seqLocal4 = remap(local, 0.90, 1.0);
+      }
+      if (charImgRef.current) {
+        charImgRef.current.src = frameSrc(seq4, seqLocal4);
+        charImgRef.current.style.opacity = "1";
+      }
+
+      // Hide flight layer
+      if (flightLayerRef.current) flightLayerRef.current.style.opacity = "0";
+
+      // Gate/banner hidden
+      if (gateLeftRef.current)  gateLeftRef.current.style.opacity  = "0";
+      if (gateRightRef.current) gateRightRef.current.style.opacity = "0";
+      if (bannerRef.current)    bannerRef.current.style.opacity    = "0";
+
+      // Cards hidden
+      if (card1Ref.current) card1Ref.current.style.opacity = "0";
+      if (card2Ref.current) card2Ref.current.style.opacity = "0";
+
+      // IU mark: scale+brightens from local 0.10 onward
+      if (iuMarkRef.current) {
+        const markAlpha = local < 0.10 ? 0 : easeOut(remap(local, 0.10, 0.28));
+        const markScale = lerp(0.7, 1.0, easeOut(clamp01(remap(local, 0.10, 0.30))));
+        iuMarkRef.current.style.opacity = String(markAlpha);
+        iuMarkRef.current.style.transform = `scale(${markScale})`;
+      }
+    }
+  }
+
+  // ── Mount: create ScrollTrigger, call render(0) ──────────────────────────
+  React.useEffect(() => {
+    mountedRef.current = true;
+
+    if (!window.gsap || !window.ScrollTrigger) {
+      console.warn("Education: GSAP/ScrollTrigger not loaded.");
+      return;
+    }
     const gsap = window.gsap;
     gsap.registerPlugin(window.ScrollTrigger);
 
-    const section  = sectionRef.current;
-    const stage    = stageRef.current;
-    const world    = worldRef.current;
-    if (!section || !stage || !world) return;
+    const section = sectionRef.current;
+    if (!section) return;
 
-    // One viewport width (the world is 300% = 3 screens)
-    const W = stage.offsetWidth;
+    // Initial render at p=0
+    render(0);
 
-    // ── Initial states ──
-    // Sprites all hidden
-    gsap.set([
-      walkRef.current, idleRef.current, stopRef.current,
-      planeRef.current, trailRef.current,
-      transformRef.current, celebRef.current,
-    ], { opacity: 0 });
-
-    // Cards hidden
-    gsap.set([card1Ref.current, card2Ref.current], { opacity: 0, y: 16 });
-    gsap.set(iuBlockRef.current, { opacity: 0, scale: 0.85, transformOrigin: "bottom center" });
-    gsap.set(rings2Ref.current, { opacity: 0, scale: 0.5, transformOrigin: "bottom center" });
-    gsap.set([sparkle1Ref.current, sparkle2Ref.current, sparkle3Ref.current], { opacity: 0 });
-
-    // Clouds hidden, start off-screen right
-    gsap.set(cL1Ref.current, { opacity: 0, x: W * 0.8 });
-    gsap.set(cM1Ref.current, { opacity: 0, x: W * 0.3 });
-    gsap.set(cS1Ref.current, { opacity: 0, x: W * 0.1 });
-
-    // World at position 0 (center of beat1)
-    gsap.set(world, { x: 0 });
-
-    // ── Build timeline ──
-    const tl = gsap.timeline({ paused: true });
-    tlRef.current = tl;
-
-    // Helper: world pan (translateX)
-    // screen 0→1 = x: 0 → -W, screen 1→2 = x: -W → -2W
-    // We offset by -W/2 at start so beat1 is centered, etc.
-    // World has 3 sections each 100vw: centers at W/2, W*1.5, W*2.5 (in world coords)
-    // Stage shows W pixels. To center screen 0: x=0 (world[0..W] visible)
-    // To center screen 1: x=-W
-    // To center screen 2: x=-2W
-
-    // ─ BEAT 1 (0 – 0.22): walk in, bachelor card ─
-    // NOTE: never put an infinite (repeat:-1) tween in a scrubbed timeline — it
-    // makes totalDuration ~1e10 and the scrub jumps straight to the end. The walk
-    // "bob" is a standalone CSS animation instead (see .edu-sprite-walk).
-    tl.to(walkRef.current, { opacity: 1, duration: 0.06 }, 0)
-      .to(card1Ref.current, { opacity: 1, y: 0, duration: 0.14, ease: "power2.out" }, 0.06)
-
-    // ─ BEAT 2 (0.22 – 0.55): walk→plane, arc up, pan 0→-W, clouds in ─
-      .to(walkRef.current, { opacity: 0, duration: 0.07, ease: "power1.in" }, 0.22)
-      .to(planeRef.current, { opacity: 1, duration: 0.07, ease: "power1.out" }, 0.22)
-      .to(card1Ref.current, { opacity: 0, y: -8, duration: 0.08, ease: "power1.in" }, 0.22)
-
-      // Plane arc: lift up then back down, positioned via actor translateY
-      .fromTo(actorRef.current,
-        { y: 0 },
-        { y: -160, duration: 0.165, ease: "power2.out" },
-        0.23
-      )
-      .to(actorRef.current, { y: 0, duration: 0.165, ease: "power2.in" }, 0.395)
-
-      // Trail behind plane during arc
-      .to(trailRef.current, { opacity: 0.75, duration: 0.07 }, 0.25)
-      .to(trailRef.current, { opacity: 0, duration: 0.07 }, 0.50)
-
-      // World pans: beat1 center → beat2 center
-      .to(world, { x: -W, duration: 0.33, ease: "power2.inOut" }, 0.22)
-
-      // Clouds drift in during flight
-      .to(cL1Ref.current, { opacity: 0.6, x: -W * 0.3, duration: 0.33, ease: "power1.inOut" }, 0.23)
-      .to(cM1Ref.current, { opacity: 0.4, x: -W * 0.5, duration: 0.33, ease: "power1.inOut" }, 0.26)
-      .to(cS1Ref.current, { opacity: 0.3, x: -W * 0.2, duration: 0.28, ease: "power1.inOut" }, 0.29)
-
-    // ─ BEAT 3 (0.55 – 0.74): plane lands, idle/stop-look, master card ─
-      .to(planeRef.current, { opacity: 0, duration: 0.08, ease: "power1.in" }, 0.55)
-      .to(stopRef.current,  { opacity: 1, duration: 0.08, ease: "power1.out" }, 0.55)
-
-      // Clouds fade out
-      .to([cL1Ref.current, cM1Ref.current, cS1Ref.current], { opacity: 0, duration: 0.12 }, 0.56)
-
-      // Arrival rings pulse
-      .to(rings2Ref.current, { opacity: 0.9, scale: 1.2, duration: 0.10, ease: "power2.out" }, 0.56)
-      .to(rings2Ref.current, { opacity: 0, scale: 1.6, duration: 0.10, ease: "power1.in" }, 0.66)
-
-      .to(card2Ref.current, { opacity: 1, y: 0, duration: 0.14, ease: "power2.out" }, 0.60)
-
-    // ─ BEAT 4 (0.74 – 1.0): pan -W → -2W, transform→graduate, IU reveal ─
-      .to(card2Ref.current, { opacity: 0, y: -8, duration: 0.08, ease: "power1.in" }, 0.74)
-      .to(stopRef.current,  { opacity: 0, duration: 0.07, ease: "power1.in" }, 0.74)
-
-      // World pans: beat2 center → beat3 center
-      .to(world, { x: -W * 2, duration: 0.26, ease: "power2.inOut" }, 0.74)
-
-      // Morph: student → graduate
-      .to(transformRef.current, { opacity: 1, duration: 0.07, ease: "power1.out" }, 0.77)
-      .to(transformRef.current, { opacity: 0, duration: 0.07, ease: "power1.in" }, 0.86)
-      .to(celebRef.current,     { opacity: 1, duration: 0.07, ease: "power1.out" }, 0.86)
-
-      // IU logo scales in
-      .to(iuBlockRef.current, { opacity: 1, scale: 1, duration: 0.14, ease: "back.out(1.5)" }, 0.80)
-
-      // Sparkles
-      .to(sparkle1Ref.current, { opacity: 1, duration: 0.06 }, 0.83)
-      .to(sparkle1Ref.current, { opacity: 0, duration: 0.06 }, 0.89)
-      .to(sparkle2Ref.current, { opacity: 1, duration: 0.06 }, 0.86)
-      .to(sparkle2Ref.current, { opacity: 0, duration: 0.06 }, 0.92)
-      .to(sparkle3Ref.current, { opacity: 0.8, duration: 0.05 }, 0.90)
-      .to(sparkle3Ref.current, { opacity: 0.5, duration: 0.05 }, 0.96);
-      // (cap-toss removed — the final beat rests on the standing graduate beside IU)
-
-    // Progress dots driven by the real scroll progress, aligned to the beats:
-    // beat1 walk 0–0.28 · flight/master 0.28–0.74 · IU/graduate 0.74–1.
-    const setDots = (p) => {
-      if (dot1Ref.current) dot1Ref.current.classList.toggle("edu-active", p < 0.28);
-      if (dot2Ref.current) dot2Ref.current.classList.toggle("edu-active", p >= 0.28 && p < 0.74);
-      if (dot3Ref.current) dot3Ref.current.classList.toggle("edu-active", p >= 0.74);
-    };
-
-    // ── ScrollTrigger ──
     const st = window.ScrollTrigger.create({
       trigger: section,
       start: "top top",
-      end: "+=300%",   // 3× viewport of scroll travel through the pinned journey
+      end: "+=600%",
       pin: true,
-      scrub: 1,
-      animation: tl,
+      scrub: 0.5,
       anticipatePin: 1,
-      onUpdate: (self) => setDots(self.progress),
+      onUpdate: (self) => {
+        render(self.progress);
+      },
     });
     stRef.current = st;
-    setDots(0);
 
     return () => {
+      mountedRef.current = false;
       if (stRef.current) { stRef.current.kill(); stRef.current = null; }
-      if (tlRef.current) { tlRef.current.kill(); tlRef.current = null; }
+      if (rafRef.current) { cancelAnimationFrame(rafRef.current); rafRef.current = null; }
     };
   }, []);
 
-  // ── Card x-positions inside world (each "screen" = 33.33% of world = 1 viewport wide)
-  // Center of screen 0 = 50% of screen 0 = 16.67% of world
-  // Center of screen 1 = 1.5 screens = 50% of world
-  // Center of screen 2 = 2.5 screens = 83.33% of world
-  // Cards are anchored in the world — they move with it via world translateX.
-  // We position them at the approximate center of each screen section.
+  // ── Click reaction (the ONE allowed non-scroll animation) ────────────────
+  function handleCharClick(e) {
+    if (e.type === "keydown" && e.key !== "Enter" && e.key !== " ") return;
+    if (e.type === "keydown") e.preventDefault();
+    if (reactingRef.current) return;
+    reactingRef.current = true;
 
-  const cardStyle = (screenIndex) => ({
-    // card sits right-of-centre so the left-of-centre character stands beside it
-    left: `calc(${screenIndex * 33.333}% + 50% * 0.3333 - 40px)`,
-  });
+    // Compute head position for comic bubble
+    if (actorRef.current) {
+      const r = actorRef.current.getBoundingClientRect();
+      setBubblePos({ x: r.left + r.width / 2, y: r.top });
+    }
+    setBubbleVisible(true);
 
-  const iuStyle = {
-    left: `calc(${2 * 33.333}% + 50% * 0.3333 - 60px)`,
-  };
+    // rAF loop for annoyed frames (~1.4s at 60fps = ~84 frames over 6 frames)
+    const ANNOYED_DURATION = 1400;
+    const DISMISS_DURATION = 800;
+    const startTime = performance.now();
+    let phase = "annoyed";
 
-  // Signpost positions
-  const signpostLeft = { left: `calc(${0 * 33.333}% + 50% * 0.3333 + 120px)`, bottom: 167 };
-  const signpostRight = { left: `calc(${1 * 33.333}% + 50% * 0.3333 + 120px)`, bottom: 167 };
+    function tick(now) {
+      if (!mountedRef.current) return;
+      const elapsed = now - startTime;
 
-  // Campus arch behind IU
-  const archStyle = {
-    position: "absolute",
-    bottom: 167,
-    left: `calc(${2 * 33.333}% + 50% * 0.3333 - 100px)`,
-    width: 200,
-    imageRendering: "pixelated",
-    opacity: 0.55,
-    zIndex: 3,
-  };
+      if (phase === "annoyed") {
+        const local = clamp01(elapsed / ANNOYED_DURATION);
+        if (reactionImgRef.current) {
+          reactionImgRef.current.src = frameSrc(SEQS.annoyed, local);
+          reactionImgRef.current.style.display = "";
+        }
+        if (elapsed < ANNOYED_DURATION) {
+          rafRef.current = requestAnimationFrame(tick);
+        } else {
+          phase = "dismiss";
+          const dismissStart = now;
+          function dismissTick(now2) {
+            if (!mountedRef.current) return;
+            const elapsed2 = now2 - dismissStart;
+            const local2 = clamp01(elapsed2 / DISMISS_DURATION);
+            if (reactionImgRef.current) {
+              reactionImgRef.current.src = frameSrc(SEQS.dismiss, local2);
+            }
+            if (elapsed2 < DISMISS_DURATION) {
+              rafRef.current = requestAnimationFrame(dismissTick);
+            } else {
+              // Cleanup
+              if (reactionImgRef.current) reactionImgRef.current.style.display = "none";
+              reactingRef.current = false;
+              setBubbleVisible(false);
+            }
+          }
+          rafRef.current = requestAnimationFrame(dismissTick);
+        }
+      }
+    }
+    rafRef.current = requestAnimationFrame(tick);
+  }
 
-  // Cloud positions (inside world, in sky region)
-  const cloudBase = { position: "absolute", imageRendering: "pixelated", pointerEvents: "none", zIndex: 3 };
-
+  // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <section ref={sectionRef} className="edu-section" aria-labelledby="edu-heading" style={{ borderTop: "1px solid hsl(var(--border))" }}>
-      {/* Section heading */}
-      <div className="edu-heading-row">
-        <h2 className="edu-heading" id="edu-heading">Education</h2>
-        <p className="edu-subheading">scroll to journey through the academic path</p>
+    <section
+      ref={sectionRef}
+      className="cine"
+      aria-labelledby="cine-heading"
+    >
+      <style>{CINE_STYLES}</style>
+
+      {/* Screen-reader accessible education facts (always readable) */}
+      <div className="cine-sr-only">
+        <h2>Education</h2>
+        <section>
+          <h3>{BACHELOR.label}</h3>
+          <p>{BACHELOR.institution}</p>
+          <p>{BACHELOR.field}</p>
+          <p>{BACHELOR.years}</p>
+        </section>
+        <section>
+          <h3>{MASTER.label}</h3>
+          <p>{MASTER.institution}</p>
+          <p>{MASTER.field}</p>
+          <p>{MASTER.years}</p>
+        </section>
       </div>
 
-      {/* Progress labels */}
-      <div className="edu-label-row">
-        <span ref={dot1Ref} className="edu-label-item edu-active">
-          <span className="edu-dot" />Bachelor's
-        </span>
-        <span ref={dot2Ref} className="edu-label-item">
-          <span className="edu-dot" />Master's
-        </span>
-        <span ref={dot3Ref} className="edu-label-item">
-          <span className="edu-dot" />IU
-        </span>
-      </div>
+      <div className="cine-stage">
 
-      {/* Stage */}
-      <div ref={stageRef} className="edu-stage">
-        {/* Sky backdrop */}
-        <div className="edu-sky" />
+        {/* Dark brand backdrop (always dark, both themes) */}
+        <div className="cine-backdrop" aria-hidden="true" />
 
-        {/* World strip */}
-        <div ref={worldRef} className="edu-world">
-          {/* Ground */}
-          <div className="edu-ground" />
+        {/* Ground line */}
+        <div className="cine-ground" aria-hidden="true" />
 
-          {/* Campus arch dressing behind IU */}
-          <img src="journey/campus-arch.png" alt="" aria-hidden="true" style={archStyle} />
+        {/* ── Act 2: Flight layer (pins, arc, plane) ── */}
+        <div
+          ref={flightLayerRef}
+          style={{ position: "absolute", inset: 0, zIndex: 11, opacity: 0, pointerEvents: "none" }}
+          aria-hidden="true"
+        >
+          {/* SVG arc overlay */}
+          <svg
+            ref={planeSvgRef}
+            className="cine-route-svg"
+            viewBox="0 0 100 100"
+            preserveAspectRatio="none"
+          >
+            <path
+              className="cine-arc-path"
+              d="M 18 38 Q 48 30 78 38"
+              fill="none"
+              stroke="rgba(245,245,247,0.35)"
+              strokeWidth="0.5"
+              strokeDasharray="2 3"
+            />
+          </svg>
 
-          {/* Signpost dressings */}
+          {/* Origin pin */}
           <img
-            src="journey/signpost.png"
+            ref={originPinRef}
+            src={ORIGIN_PIN}
             alt=""
-            aria-hidden="true"
-            className="edu-signpost"
-            style={{ ...signpostLeft, width: 70, imageRendering: "pixelated" }}
-          />
-          <img
-            src="journey/signpost.png"
-            alt=""
-            aria-hidden="true"
-            className="edu-signpost"
-            style={{ ...signpostRight, width: 70, imageRendering: "pixelated", transform: "scaleX(-1)" }}
+            className="cine-pin"
+            style={{ width: 38, height: "auto", opacity: 0 }}
           />
 
-          {/* Clouds (also inside world so they pan — but slower via GSAP separate tween) */}
+          {/* ORD pin */}
           <img
-            ref={cL1Ref}
-            src="journey/cloud-large.png"
+            ref={ordPinRef}
+            src={ORD_PIN}
             alt=""
-            aria-hidden="true"
-            className="edu-cloud"
-            style={{ top: "8%", width: 180 }}
-          />
-          <img
-            ref={cM1Ref}
-            src="journey/cloud-medium.png"
-            alt=""
-            aria-hidden="true"
-            className="edu-cloud"
-            style={{ top: "14%", width: 120 }}
-          />
-          <img
-            ref={cS1Ref}
-            src="journey/cloud-small.png"
-            alt=""
-            aria-hidden="true"
-            className="edu-cloud"
-            style={{ top: "20%", width: 80 }}
+            className="cine-pin"
+            style={{ width: 26, height: "auto", opacity: 0 }}
           />
 
-          {/* Bachelor's card */}
-          <div ref={card1Ref} className="edu-card" style={cardStyle(0)}>
-            <p className="edu-card-label">{BACHELOR.label}</p>
-            <p className="edu-card-title">{BACHELOR.institution}</p>
-            <p className="edu-card-sub">{BACHELOR.field}</p>
-            <p className="edu-card-years">{BACHELOR.years}</p>
-          </div>
+          {/* ORD label */}
+          <span
+            ref={ordLabelRef}
+            className="cine-ord-label"
+            style={{ opacity: 0 }}
+          >
+            Chicago O'Hare (ORD)
+          </span>
 
-          {/* Master's card */}
-          <div ref={card2Ref} className="edu-card" style={cardStyle(1)}>
-            <p className="edu-card-label">{MASTER.label}</p>
-            <p className="edu-card-title">{MASTER.institution}</p>
-            <p className="edu-card-sub">{MASTER.field}</p>
-            <p className="edu-card-years">{MASTER.years}</p>
-          </div>
-
-          {/* IU milestone block */}
-          <div ref={iuBlockRef} className="edu-iu-block" style={{ left: `calc(${2 * 33.333}% + 50% * 0.3333 - 60px)` }}>
-            <img src="journey/iu-pixel-mark.png" alt="Indiana University" className="edu-iu-mark" />
-            <img src="journey/iu-pennant.png" alt="IU pennant" className="edu-iu-pennant" />
-          </div>
-
-          {/* Sparkles at IU */}
+          {/* Plane */}
           <img
-            ref={sparkle1Ref}
-            src="journey/success-sparkles-cyan.png"
+            ref={planeImgRef}
+            src={frameSrc(SEQS.plane, 0)}
             alt=""
-            aria-hidden="true"
-            className="edu-sparkle"
-            style={{ bottom: 240, left: `calc(${2 * 33.333}% + 50% * 0.3333 - 120px)`, width: 80 }}
-          />
-          <img
-            ref={sparkle2Ref}
-            src="journey/success-sparkles-mint.png"
-            alt=""
-            aria-hidden="true"
-            className="edu-sparkle"
-            style={{ bottom: 300, left: `calc(${2 * 33.333}% + 50% * 0.3333 + 50px)`, width: 70 }}
-          />
-          <img
-            ref={sparkle3Ref}
-            src="journey/success-sparkles-amber.png"
-            alt=""
-            aria-hidden="true"
-            className="edu-sparkle"
-            style={{ bottom: 260, left: `calc(${2 * 33.333}% + 50% * 0.3333 - 40px)`, width: 90 }}
-          />
-
-          {/* Arrival ring at master's */}
-          <img
-            ref={rings2Ref}
-            src="journey/arrival-rings.png"
-            alt=""
-            aria-hidden="true"
-            className="edu-arrival-rings"
-            style={{ bottom: 145, left: `calc(${1 * 33.333}% + 50% * 0.3333 - 230px)` }}
-          />
-
-        </div>{/* /world */}
-
-        {/* Actor layer — fixed to stage, not world */}
-        <div ref={actorRef} className="edu-actor" style={{ width: "100%" }}>
-          <img
-            ref={walkRef}
-            src="journey/student-walk.webp"
-            alt="Student walking"
-            className="edu-sprite edu-sprite-walk"
-          />
-          <img
-            ref={stopRef}
-            src="journey/student-stop-look.webp"
-            alt="Student looking"
-            className="edu-sprite edu-sprite-stoplook"
-          />
-          <img
-            ref={idleRef}
-            src="journey/student-idle.webp"
-            alt="Student idle"
-            className="edu-sprite edu-sprite-idle"
-          />
-          {/* Plane — centered, slightly above actor base */}
-          <img
-            ref={planeRef}
-            src="journey/plane-flight.webp"
-            alt="Plane in flight"
-            className="edu-sprite edu-sprite-plane"
-          />
-          <img
-            ref={trailRef}
-            src="journey/motion-trail.webp"
-            alt=""
-            aria-hidden="true"
-            className="edu-sprite edu-sprite-trail"
-            style={{ left: "calc(50% - 290px)", transform: "none" }}
-          />
-          <img
-            ref={transformRef}
-            src="journey/student-to-graduate.webp"
-            alt="Student becoming graduate"
-            className="edu-sprite edu-sprite-transform"
-          />
-          <img
-            ref={celebRef}
-            src="journey/graduate-celebrate.webp"
-            alt="Graduate celebrating"
-            className="edu-sprite edu-sprite-celebrate"
+            className="cine-plane-img"
+            style={{ width: 72, height: "auto", opacity: 1 }}
           />
         </div>
 
+        {/* ── IU props (gate pillars, banner) ── */}
+        <img
+          ref={gateLeftRef}
+          src={GATE_LEFT}
+          alt=""
+          aria-hidden="true"
+          className="cine-prop"
+          style={{ width: 60, left: "54%", bottom: "12%", opacity: 0 }}
+        />
+        <img
+          ref={gateRightRef}
+          src={GATE_RIGHT}
+          alt=""
+          aria-hidden="true"
+          className="cine-prop"
+          style={{ width: 60, right: "8%", bottom: "12%", opacity: 0 }}
+        />
+        <img
+          ref={bannerRef}
+          src={BANNER}
+          alt=""
+          aria-hidden="true"
+          className="cine-prop"
+          style={{ width: 50, right: "22%", top: "18%", opacity: 0 }}
+        />
+
+        {/* ── IU mark (graduation) ── */}
+        <img
+          ref={iuMarkRef}
+          src={IU_MARK}
+          alt="Indiana University"
+          className="cine-iu-mark"
+          style={{ width: 90, right: "12%", bottom: "24%", opacity: 0, transformOrigin: "center bottom" }}
+        />
+
+        {/* ── Education cards ── */}
+        <div
+          ref={card1Ref}
+          className="cine-card"
+          aria-hidden="true"
+          style={{ bottom: "22%", left: "54%", opacity: 0 }}
+        >
+          <p className="cine-card-label">{BACHELOR.label}</p>
+          <p className="cine-card-title">{BACHELOR.institution}</p>
+          <p className="cine-card-sub">{BACHELOR.field}</p>
+          <p className="cine-card-years">{BACHELOR.years}</p>
+        </div>
+
+        <div
+          ref={card2Ref}
+          className="cine-card"
+          aria-hidden="true"
+          style={{ bottom: "22%", left: "54%", opacity: 0 }}
+        >
+          <p className="cine-card-label">{MASTER.label}</p>
+          <p className="cine-card-title">{MASTER.institution}</p>
+          <p className="cine-card-sub">{MASTER.field}</p>
+          <p className="cine-card-years">{MASTER.years}</p>
+        </div>
+
+        {/* ── Character actor (focusable button) ── */}
+        <button
+          ref={actorRef}
+          className="cine-actor"
+          aria-label="Talk to the character"
+          onClick={handleCharClick}
+          onKeyDown={handleCharClick}
+          style={{ left: 0, transform: "translateX(14vw)" }}
+        >
+          <div className="cine-contact-shadow" />
+
+          {/* Main character frame */}
+          <img
+            ref={charImgRef}
+            src={frameSrc(SEQS.homeExit, 0)}
+            alt="Student character"
+            className="cine-char-img"
+          />
+
+          {/* Click-reaction overlay (hidden by default) */}
+          <img
+            ref={reactionImgRef}
+            src={frameSrc(SEQS.annoyed, 0)}
+            alt=""
+            aria-hidden="true"
+            className="cine-char-reaction"
+            style={{ display: "none" }}
+          />
+        </button>
+
+        {/* ── Comic bubble (click interruption) ── */}
+        {window.ComicBubble && bubbleVisible && (
+          <window.ComicBubble
+            visible={true}
+            text="Let me go and complete this journey. I'll be back."
+            x={bubblePos.x}
+            y={bubblePos.y}
+          />
+        )}
+
+        {/* ── HUD ── */}
+        <div className="cine-header">
+          <div>
+            <h2 className="cine-heading" id="cine-heading">Education</h2>
+            <p className="cine-subheading">scroll to journey through the academic path</p>
+          </div>
+          <div className="cine-chapters" aria-hidden="true">
+            {CHAPTERS.map((ch, i) => (
+              <React.Fragment key={ch.label}>
+                <span
+                  ref={(el) => { dotsRef.current[i] = el; }}
+                  className={"cine-dot" + (i === 0 ? " cine-dot--active" : "")}
+                  title={ch.label}
+                />
+                <span className="cine-dot-label">{ch.label}</span>
+              </React.Fragment>
+            ))}
+          </div>
+        </div>
+
+        {/* Progress bar */}
+        <div className="cine-progress-bar-wrap" aria-hidden="true">
+          <div ref={progressBarRef} className="cine-progress-bar" />
+        </div>
+
         {/* Scroll hint */}
-        <p className="edu-scroll-hint" aria-hidden="true">scroll to explore ↓</p>
-      </div>{/* /stage */}
+        <p ref={scrollHintRef} className="cine-scroll-hint" aria-hidden="true">
+          scroll to explore ↓
+        </p>
+
+      </div>{/* /cine-stage */}
     </section>
   );
+}
+
+// ── Reduced-motion listener hook ─────────────────────────────────────────────
+function useReducedMotion() {
+  const mq = typeof window !== "undefined" && window.matchMedia
+    ? window.matchMedia("(prefers-reduced-motion: reduce)")
+    : null;
+
+  const [reduced, setReduced] = React.useState(mq ? mq.matches : false);
+
+  React.useEffect(() => {
+    if (!mq) return;
+    const handler = (e) => setReduced(e.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
+
+  return reduced;
 }
 
 // ── Main export ───────────────────────────────────────────────────────────────
@@ -859,22 +1158,41 @@ function Education() {
   const reduced = useReducedMotion();
   const noGsap  = typeof window !== "undefined" && !window.gsap;
 
-  return (
-    <>
-      <style>{EDU_STYLES}</style>
-      {(reduced || noGsap) ? (
-        <section className="edu-section edu--static" style={{ borderTop: "1px solid hsl(var(--border))" }}>
-          <div className="edu-heading-row">
-            <h2 className="edu-heading">Education</h2>
-            <p className="edu-subheading">academic journey</p>
+  if (reduced || noGsap) {
+    return (
+      <>
+        <style>{CINE_STYLES}</style>
+        <section
+          className="cine"
+          aria-labelledby="cine-heading-static"
+          style={{ background: "hsl(220,25%,7%)", borderTop: "1px solid hsl(var(--border))", padding: "40px 0 0" }}
+        >
+          <div style={{ padding: "0 28px 8px" }}>
+            <h2
+              id="cine-heading-static"
+              style={{
+                fontFamily: "var(--font-sans)",
+                fontSize: "var(--text-2xl)",
+                fontWeight: "var(--weight-semibold)",
+                color: "#f5f5f7",
+                letterSpacing: "var(--tracking-tight)",
+                margin: 0,
+                textShadow: "0 1px 6px rgba(0,0,0,0.6)",
+              }}
+            >
+              Education
+            </h2>
+            <p style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-xs)", color: "rgba(245,245,247,0.7)", textTransform: "uppercase", letterSpacing: "var(--tracking-wider)", margin: "4px 0 0" }}>
+              academic journey
+            </p>
           </div>
           <EducationStatic />
         </section>
-      ) : (
-        <EducationAnimated />
-      )}
-    </>
-  );
+      </>
+    );
+  }
+
+  return <EducationAnimated />;
 }
 
 window.Education = Education;

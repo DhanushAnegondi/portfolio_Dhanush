@@ -41,16 +41,18 @@
   <script src="../../_ds_bundle.js"></script>
   <script type="text/babel" src="Hero.jsx"></script>
   <script type="text/babel" src="Content.jsx"></script>
+  <script type="text/babel" src="journey/_fx.jsx"></script>
   <script type="text/babel" src="Education.jsx"></script>
 
   <script type="text/babel">
     const { ChatWidget } = window.DhanushChandraDesignSystem_2b4e61;
-    const { Hero, Content, Education } = window;
+    const { Hero, Content, Education, ThemeToggle } = window;
 
     function App() {
       const [chatOpen, setChatOpen] = React.useState(false);
       return (
         <main>
+          {ThemeToggle ? <ThemeToggle /> : null}
           <Hero onAskAI={() => setChatOpen(true)} />
           <Content />
           <Education />
